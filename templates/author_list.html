@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<link rel="stylesheet" href="/static/style.css">
+<head><meta charset="utf-8"><title>Authors - {{ app_name }}</title></head>
+<body>
+<h1>Authors</h1>
+<p><a href="/admin">Back to admin</a> | <a href="/admin/author/new">+ Add author</a></p>
+
+<table border="1" cellpadding="6" cellspacing="0">
+    <tr>
+        <th>Name</th><th>Affiliation</th><th>Email</th><th>ORCID</th>
+        <th>Member since</th><th>Qualified</th><th>Active</th> <th> Modify </th>
+    </tr>
+    {% for a in authors %}
+    <tr>
+        <td>{{ a.last_name }}, {{ a.first_name }}</td>
+        <td>
+            {% for aff in a.affiliations %}
+            {{ aff.short_name }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </td>
+        <td>{{ a.email }}</td>
+        <td>{{ a.orcid }}</td>
+        <td>{{ a.member_since }}</td>
+        <td>{{ "✓" if a.qualified else "" }}</td>
+        <td>{{ "✓" if a.active else "" }}</td>
+        <td>
+            <a href="/admin/author/edit/{{ a.id }}">edit</a>
+            <form method="post" action="/admin/author/delete/{{ a.id }}" style="display:inline">
+                <button class="danger" type="submit" onclick="return confirm('Delete this author?')">
+                    delete
+                </button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

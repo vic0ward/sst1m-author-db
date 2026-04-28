@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<link rel="stylesheet" href="/static/style.css">
+<head><meta charset="utf-8"><title>Edit - {{ app_name }}</title></head>
+<body>
+<main>
+    <h1>{{ "New affiliation" if not affiliation else "Edit affiliation" }}</h1>
+
+    <div class="nav">
+        <a class="button" href="/admin">Back to admin</a>
+    </div>
+
+    <div class="card">
+        <form method="post" action="{{ '/admin/author/new' if not author else '/admin/author/edit/' ~ author.id }}">
+            <label>Short name <input name="short_name" value="{{ '' if not affiliation else affiliation.short_name }}"></label><br>
+            <label>Department <input name="department" value="{{ '' if not affiliation else affiliation.department }}"></label><br>
+            <label>Institution <input name="institution" value="{{ '' if not affiliation else affiliation.institution }}"></label><br>
+            <label>Street <input name="street" value="{{ '' if not affiliation else affiliation.street }}"></label><br><br>
+            <label>Postal Code <input name="postal_code" value="{{ '' if not affiliation else affiliation.postal_code }}"></label><br><br>
+            <label>City <input name="city" value="{{ '' if not affiliation else affiliation.city }}"></label><br><br>
+            <label>Country <input name="country" value="{{ '' if not affiliation else affiliation.country }}"></label><br><br>
+            <button type="submit">Save</button>
+        </form>
+    </div>
+<p><a href="/admin">Back to list</a></p>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<link rel="stylesheet" href="/static/style.css">
+<head><meta charset="utf-8"><title>Affiliations - {{ app_name }}</title></head>
+<body>
+<h1>Affiliations</h1>
+<p><a href="/admin">Back to admin</a> | <a href="/admin/affiliation/new">+ Add affiliation</a></p>
+
+<table border="1" cellpadding="6" cellspacing="0">
+    <tr>
+        <th>Short Name</th><th>Department</th><th>Institution</th><th>Street</th>
+        <th>Postal Code</th><th>City</th><th>Country</th><th>Modify</th>
+    </tr>
+    {% for a in affiliations %}
+    <tr>
+        <td>{{ a.short_name }}</td>
+        <td>{{ a.department }}</td>
+        <td>{{ a.institution }}</td>
+        <td>{{ a.street }}</td>
+        <td>{{ a.postal_code }}</td>
+        <td>{{ a.city }}</td>
+        <td>{{ a.country }}</td>
+        <td>
+            <a href="/admin/affiliation/edit/{{ a.id }}">edit</a>
+            <form method="post" action="/admin/affiliation/delete/{{ a.id }}" style="display:inline">
+                <button class="danger" type="submit" onclick="return confirm('Delete this affiliation')">
+                    delete
+                </button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<link rel="stylesheet" href="/static/style.css">
+<header class="header">
+    <div class="header-left">
+        <img src="/static/sst_1m_logo_v06_sst-black-full.png" alt="Logo" class="logo">
+        <span class="app-title"> Admin - {{ app_name }} </span>
+    </div>
+</header>
+<body>
+<main>
+
+
+    <div class="nav">
+        <a class="button" href="/">Home</a>
+        <a class="button" href="/admin/author/new">+ Add author</a>
+        <a class="button" href="/admin/affiliation/new">+ Add affiliation</a>
+
+        <form method="post" action="/logout">
+            <button type="submit" class="danger">Logout</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Batch import</h2>
+        <form method="post" action="/admin/import/xml" enctype="multipart/form-data">
+            <input type="file" name="xml_file" accept=".xml">
+            <br><br>
+            <button type="submit">Import XML</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Authors</h2>
+        <p><a href="/admin/author/new">+ Add author</a> | <a href="/">Home</a></p>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Name</th><th>Affiliation</th><th>Email</th><th>ORCID</th>
+                <th>Member since</th><th>Qualified</th><th>Active</th> <th> Modify </th>
+            </tr>
+            {% for a in authors %}
+            <tr>
+                <td>{{ a.last_name }}, {{ a.first_name }}</td>
+                <td>
+                    {% for aff in a.affiliations %}
+                    {{ aff.short_name }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td>{{ a.email }}</td>
+                <td>{{ a.orcid }}</td>
+                <td>{{ a.member_since }}</td>
+                <td>{{ "✓" if a.qualified else "" }}</td>
+                <td>{{ "✓" if a.active else "" }}</td>
+                <td>
+                    <a href="/admin/author/edit/{{ a.id }}">edit</a>
+                    <form method="post" action="/admin/author/delete/{{ a.id }}" style="display:inline">
+                        <button class="danger" type="submit" onclick="return confirm('Delete this author?')">
+                            delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Affiliations</h2>
+        <p><a href="/admin/affiliation/new">+ Add affiliation</a> | <a href="/">Home</a></p>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Short Name</th><th>Department</th><th>Institution</th><th>Street</th>
+                <th>Postal Code</th><th>City</th><th>Country</th><th>Modify</th>
+            </tr>
+            {% for a in affiliations %}
+            <tr>
+                <td>{{ a.short_name }}</td>
+                <td>{{ a.department }}</td>
+                <td>{{ a.institution }}</td>
+                <td>{{ a.street }}</td>
+                <td>{{ a.postal_code }}</td>
+                <td>{{ a.city }}</td>
+                <td>{{ a.country }}</td>
+                <td>
+                    <a href="/admin/affiliation/edit/{{ a.id }}">edit</a>
+                    <form method="post" action="/admin/affiliation/delete/{{ a.id }}" style="display:inline">
+                        <button class="danger" type="submit" onclick="return confirm('Delete this affiliation?')">
+                            delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<link rel="stylesheet" href="/static/style.css">
+<head><meta charset="utf-8"><title>{{ app_name }}</title></head>
+<body>
+<h1>{{ app_name }}</h1>
+
+<div class="card">
+    <h2>Admin</h2>
+        <p><a href="/login">Login</a> (admins only)</p>
+</div>
+
+<p>Authors in database: <b>{{ author_count }}</b></p>
+
+<table border="1" cellpadding="6" cellspacing="0">
+    <tr>
+        <th>Name</th><th>Affiliation</th><th>Email</th><th>ORCID</th>
+        <th>Member since</th><th>Qualified</th><th>Active</th>
+    </tr>
+
+    {% for a in authors %}
+    {% if a.active %}
+    <tr>
+        <td>{{ a.last_name }}, {{ a.first_name }}</td>
+        <td>
+            {% for aff in a.affiliations %}
+            {{ aff.short_name }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </td>
+        <td>{{ a.email }}</td>
+        <td>{{ a.orcid }}</td>
+        <td>{{ a.member_since }}</td>
+        <td>{{ "✓" if a.qualified else "" }}</td>
+        <td>{{ "✓" if a.active else "" }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+</table>
+
+<h2>Download latest author list</h2>
+<ul>
+    <li><a href="/export.txt">Text (.txt)</a></li>
+    <li><a href="/export.tex">LaTeX (.tex)</a></li>
+    <li><a href="/export.xml">XML (.xml)</a></li>
+</ul>
+
+<h2>Admin</h2>
+<p><a href="/login">Login</a> (admins only)</p>
+</body>
+</html>
