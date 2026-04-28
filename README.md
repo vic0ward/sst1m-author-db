@@ -15,4 +15,5 @@ Simple web interface to manage authors and affiliations and export lists in:
 ```bash
 pip install -r requirements.txt
 uvicorn app:app --reload
+
 Open: http://127.0.0.1:8000
