@@ -7,7 +7,7 @@ Simple web interface to manage authors and affiliations and export lists in:
 
 ## Features
 - Admin interface
-- Author<-> affiliation many-to-many
+- Author <-> affiliation many-to-many
 - Export formats compatible with collaboration templates
 
 ## Run locally
@@ -15,5 +15,7 @@ Simple web interface to manage authors and affiliations and export lists in:
 ```bash
 pip install -r requirements.txt
 uvicorn app:app --reload
+```
 
-Open: http://127.0.0.1:8000
+## Open
+Go to http://127.0.0.1:8000
