@@ -1,29 +1,31 @@
 <!doctype html>
 <html>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="{{ root_path }}/static/style.css">
+{# Header hidden — redundant inside the wiki iframe (the wiki page has its own title).
 <header class="header">
     <div class="header-left">
-        <img src="/static/sst_1m_logo_v06_sst-black-full.png" alt="Logo" class="logo">
+        <img src="{{ root_path }}/static/sst_1m_logo_v06_sst-black-full.png" alt="Logo" class="logo">
         <span class="app-title"> Admin - {{ app_name }} </span>
     </div>
 </header>
+#}
 <body>
 <main>
 
 
     <div class="nav">
-        <a class="button" href="/">Home</a>
-        <a class="button" href="/admin/author/new">+ Add author</a>
-        <a class="button" href="/admin/affiliation/new">+ Add affiliation</a>
+        <a class="button" href="{{ root_path }}/">Home</a>
+        <a class="button" href="{{ root_path }}/admin/author/new">+ Add author</a>
+        <a class="button" href="{{ root_path }}/admin/affiliation/new">+ Add affiliation</a>
 
-        <form method="post" action="/logout">
+        <form method="post" action="{{ root_path }}/logout">
             <button type="submit" class="danger">Logout</button>
         </form>
     </div>
 
     <div class="card">
         <h2>Batch import</h2>
-        <form method="post" action="/admin/import/xml" enctype="multipart/form-data">
+        <form method="post" action="{{ root_path }}/admin/import/xml" enctype="multipart/form-data">
             <input type="file" name="xml_file" accept=".xml">
             <br><br>
             <button type="submit">Import XML</button>
@@ -32,7 +34,7 @@
 
     <div class="card">
         <h2>Authors</h2>
-        <p><a href="/admin/author/new">+ Add author</a> | <a href="/">Home</a></p>
+        <p><a href="{{ root_path }}/admin/author/new">+ Add author</a> | <a href="{{ root_path }}/">Home</a></p>
         <table border="1" cellpadding="6" cellspacing="0">
             <tr>
                 <th>Name</th><th>Affiliation</th><th>Email</th><th>ORCID</th>
@@ -52,12 +54,17 @@
                 <td>{{ "✓" if a.qualified else "" }}</td>
                 <td>{{ "✓" if a.active else "" }}</td>
                 <td>
-                    <a href="/admin/author/edit/{{ a.id }}">edit</a>
-                    <form method="post" action="/admin/author/delete/{{ a.id }}" style="display:inline">
-                        <button class="danger" type="submit" onclick="return confirm('Delete this author?')">
-                            delete
-                        </button>
-                    </form>
+                    {# Textual link replaced by the blue [Edit] button below.
+                    <a href="{{ root_path }}/admin/author/edit/{{ a.id }}">edit</a>
+                    #}
+                    <div class="actions">
+                        <a class="button" href="{{ root_path }}/admin/author/edit/{{ a.id }}">Edit</a>
+                        <form method="post" action="{{ root_path }}/admin/author/delete/{{ a.id }}" style="display:inline">
+                            <button class="danger" type="submit" onclick="return confirm('Delete this author?')">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -66,7 +73,7 @@
 
     <div class="card">
         <h2>Affiliations</h2>
-        <p><a href="/admin/affiliation/new">+ Add affiliation</a> | <a href="/">Home</a></p>
+        <p><a href="{{ root_path }}/admin/affiliation/new">+ Add affiliation</a> | <a href="{{ root_path }}/">Home</a></p>
         <table border="1" cellpadding="6" cellspacing="0">
             <tr>
                 <th>Short Name</th><th>Department</th><th>Institution</th><th>Street</th>
@@ -82,12 +89,17 @@
                 <td>{{ a.city }}</td>
                 <td>{{ a.country }}</td>
                 <td>
-                    <a href="/admin/affiliation/edit/{{ a.id }}">edit</a>
-                    <form method="post" action="/admin/affiliation/delete/{{ a.id }}" style="display:inline">
-                        <button class="danger" type="submit" onclick="return confirm('Delete this affiliation?')">
-                            delete
-                        </button>
-                    </form>
+                    {# Textual link replaced by the blue [Edit] button below.
+                    <a href="{{ root_path }}/admin/affiliation/edit/{{ a.id }}">edit</a>
+                    #}
+                    <div class="actions">
+                        <a class="button" href="{{ root_path }}/admin/affiliation/edit/{{ a.id }}">Edit</a>
+                        <form method="post" action="{{ root_path }}/admin/affiliation/delete/{{ a.id }}" style="display:inline">
+                            <button class="danger" type="submit" onclick="return confirm('Delete this affiliation?')">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% endfor %}

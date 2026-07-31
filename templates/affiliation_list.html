@@ -1,10 +1,10 @@
 <!doctype html>
 <html>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="{{ root_path }}/static/style.css">
 <head><meta charset="utf-8"><title>Affiliations - {{ app_name }}</title></head>
 <body>
 <h1>Affiliations</h1>
-<p><a href="/admin">Back to admin</a> | <a href="/admin/affiliation/new">+ Add affiliation</a></p>
+<p><a href="{{ root_path }}/admin">Back to admin</a> | <a href="{{ root_path }}/admin/affiliation/new">+ Add affiliation</a></p>
 
 <table border="1" cellpadding="6" cellspacing="0">
     <tr>
@@ -21,12 +21,17 @@
         <td>{{ a.city }}</td>
         <td>{{ a.country }}</td>
         <td>
-            <a href="/admin/affiliation/edit/{{ a.id }}">edit</a>
-            <form method="post" action="/admin/affiliation/delete/{{ a.id }}" style="display:inline">
-                <button class="danger" type="submit" onclick="return confirm('Delete this affiliation')">
-                    delete
-                </button>
-            </form>
+            {# Textual link replaced by the blue [Edit] button below.
+            <a href="{{ root_path }}/admin/affiliation/edit/{{ a.id }}">edit</a>
+            #}
+            <div class="actions">
+                <a class="button" href="{{ root_path }}/admin/affiliation/edit/{{ a.id }}">Edit</a>
+                <form method="post" action="{{ root_path }}/admin/affiliation/delete/{{ a.id }}" style="display:inline">
+                    <button class="danger" type="submit" onclick="return confirm('Delete this affiliation')">
+                        Delete
+                    </button>
+                </form>
+            </div>
         </td>
     </tr>
     {% endfor %}

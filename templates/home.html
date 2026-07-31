@@ -1,14 +1,24 @@
 <!doctype html>
 <html>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="{{ root_path }}/static/style.css">
 <head><meta charset="utf-8"><title>{{ app_name }}</title></head>
 <body>
+{# In-app title hidden — the wiki page (Special:AuthorDB) already shows its own heading.
 <h1>{{ app_name }}</h1>
+#}
 
+{# Admin login box hidden — password login is disabled in embedded mode (wiki SSO only).
 <div class="card">
     <h2>Admin</h2>
-        <p><a href="/login">Login</a> (admins only)</p>
+        <p><a href="{{ root_path }}/login">Login</a> (admins only)</p>
 </div>
+#}
+
+{% if is_admin %}
+<div class="nav">
+    <a class="button" href="{{ root_path }}/admin">Edit</a>
+</div>
+{% endif %}
 
 <p>Authors in database: <b>{{ author_count }}</b></p>
 
@@ -39,12 +49,14 @@
 
 <h2>Download latest author list</h2>
 <ul>
-    <li><a href="/export.txt">Text (.txt)</a></li>
-    <li><a href="/export.tex">LaTeX (.tex)</a></li>
-    <li><a href="/export.xml">XML (.xml)</a></li>
+    <li><a href="{{ root_path }}/export.txt">Text (.txt)</a></li>
+    <li><a href="{{ root_path }}/export.tex">LaTeX (.tex)</a></li>
+    <li><a href="{{ root_path }}/export.xml">XML (.xml)</a></li>
 </ul>
 
+{# Duplicate admin login link hidden — same reason as the box above.
 <h2>Admin</h2>
-<p><a href="/login">Login</a> (admins only)</p>
+<p><a href="{{ root_path }}/login">Login</a> (admins only)</p>
+#}
 </body>
 </html>

@@ -1,6 +1,6 @@
 <!doctype html>
 <html>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="{{ root_path }}/static/style.css">
 <head><meta charset="utf-8"><title>Edit - {{ app_name }}</title></head>
 
 <body>
@@ -8,11 +8,15 @@
     <h1>{{ "New author" if not author else "Edit author" }}</h1>
 
     <div class="nav">
-        <a class="button" href="/admin">Back to admin</a>
+        <a class="button" href="{{ root_path }}/admin">Back to admin</a>
     </div>
 
     <div class="card">
+        {# Original action lacked the root_path prefix — behind the /authordb proxy
+           the POST escaped the app and landed on the wiki origin.
         <form method="post" action="{{ '/admin/author/new' if not author else '/admin/author/edit/' ~ author.id }}">
+        #}
+        <form method="post" action="{{ root_path }}{{ '/admin/author/new' if not author else '/admin/author/edit/' ~ author.id }}">
             <label>First name <input name="first_name" value="{{ '' if not author else author.first_name }}"></label><br>
             <label>Last name <input name="last_name" value="{{ '' if not author else author.last_name }}"></label><br>
             <label>Affiliations</label><br>
@@ -35,7 +39,7 @@
             <button type="submit">Save</button>
         </form>
     </div>
-    <p><a href="/admin">Back to list</a></p>
+    <p><a href="{{ root_path }}/admin">Back to list</a></p>
 </main>
 </body>
 </html>

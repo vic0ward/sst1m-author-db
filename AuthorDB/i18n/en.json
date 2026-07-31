@@ -1,0 +1,13 @@
+{
+	"@metadata": {
+		"authors": [
+			"SST-1M Collaboration"
+		]
+	},
+	"authordb": "Authorship DB",
+	"authordb-desc": "Embeds the SST-1M Authorship database as a special page, with single sign-on from MediaWiki accounts.",
+	"authordb-login-required": "You must be logged in to access the Authorship DB.",
+	"authordb-list-error": "Could not load the author list from the Authorship DB.",
+	"right-manage-authors": "Manage the SST-1M authorship database (add/edit authors and affiliations)",
+	"action-manage-authors": "manage the authorship database"
+}

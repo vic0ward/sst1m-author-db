@@ -1,15 +1,20 @@
 body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-    background: #f4f6f8;
+    /* background: #f4f6f8;  hidden — let the wiki page background show through the iframe */
     color: #222;
-    padding: 0 16px;
+    /* padding: 0 16px;  hidden — the last inset keeping the embed narrower
+       than the wiki content; content now lines up with the wiki heading */
 }
 
 main {
-    max-width: 1200px;   /* controls overall width */
-    margin: 40px auto;   /* centers it */
-    padding: 0 32px;     /* internal breathing room */
+    /* Centered fixed-width column hidden for the wiki embed — inside the
+       iframe it left a 40px gap under the wiki heading and a centered
+       "island" misaligned with the wiki page. (The body's 16px padding is
+       commented out as well — the embed spans the full iframe width.) */
+    /* max-width: 1200px;   controls overall width */
+    /* margin: 40px auto;   centers it */
+    /* padding: 0 32px;     internal breathing room */
 }
 
 h1 {
@@ -132,6 +137,15 @@ input[type="checkbox"] {
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+/* Compact action buttons inside table rows (Edit / Delete): equal size,
+   side by side, less tall than the regular form buttons. */
+.actions .button,
+.actions button {
+    padding: 5px 12px;
+    font-size: 13px;
+    line-height: 1.2;
 }
 
 .header {

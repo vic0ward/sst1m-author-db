@@ -1,0 +1,59 @@
+# Sample systemd unit for the embedded FastAPI Authorship DB.
+# Install to /etc/systemd/system/authordb.service, then:
+#   systemctl daemon-reload && systemctl enable --now authordb
+#
+# Runs as the dedicated system user `sst1m-author-db` (create it first, see
+# INTEGRATION.md). The code directory stays root-owned and read-only to the
+# service; the only writable location is the SQLite state dir /var/lib/authordb,
+# which systemd creates and owns automatically via StateDirectory=.
+#
+# Bind to 127.0.0.1 ONLY: the app must be reachable solely via the wiki's
+# reverse proxy, so the wiki SSO is the only path to admin.
+
+[Unit]
+Description=SST-1M Authorship DB (embedded under MediaWiki)
+After=network.target
+
+[Service]
+Type=simple
+User=sst1m-author-db
+Group=sst1m-author-db
+WorkingDirectory=/srv/sst1m-author-db
+Environment=AUTHORDB_EMBEDDED=1
+Environment=ROOT_PATH=/authordb
+Environment=AUTHORDB_FRAME_ANCESTORS=http://wiki.sst1m.science
+# 0 while the wiki is plain HTTP — a Secure cookie would be dropped by the
+# browser and SSO would end on 401. Switch to 1 once the wiki runs on HTTPS.
+Environment=AUTHORDB_COOKIE_SECURE=0
+# Keep the DB out of the (read-only) code directory. Four slashes = absolute path.
+Environment=AUTHORDB_DB_URL=sqlite:////var/lib/authordb/authorship.db
+# MUST match $wgAuthorDBSecret in LocalSettings.php. Generate with e.g.:
+#   python -c "import secrets; print(secrets.token_urlsafe(48))"
+Environment=AUTHOR_DB_SECRET=-PUT-THE-SECRET-TOKEN-HERE--PUT-THE-SECRET-TOKEN-HERE--PUT-THE-SECRET-TOKEN-HERE--PUT-THE-SECRET-TOKEN-HERE-
+ExecStart=/srv/sst1m-author-db/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8489
+Restart=on-failure
+
+# --- Sandboxing: the service can write only to /var/lib/authordb ---
+# Creates /var/lib/authordb owned by the service user at start.
+StateDirectory=authordb
+StateDirectoryMode=0750
+UMask=0077
+# Whole filesystem read-only except StateDirectory (and /tmp below).
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

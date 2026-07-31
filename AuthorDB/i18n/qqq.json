@@ -1,0 +1,13 @@
+{
+	"@metadata": {
+		"authors": [
+			"SST-1M Collaboration"
+		]
+	},
+	"authordb": "The name of the special page (Special:AuthorDB) and its page title.",
+	"authordb-desc": "{{desc|name=AuthorDB|url=https://github.com/your-org/sst1m-author-db}} Short description of the extension shown on Special:Version.",
+	"authordb-login-required": "Message shown to anonymous users explaining they must log in to use the special page.",
+	"authordb-list-error": "Error message rendered in place of the <authordb-list/> parser tag when the wiki cannot fetch the author list fragment from the embedded app.",
+	"right-manage-authors": "{{doc-right|manage-authors}} Description of the user right that allows editing the authorship database.",
+	"action-manage-authors": "{{doc-action|manage-authors}} Used in permission-error sentences (\"You do not have permission to ...\")."
+}

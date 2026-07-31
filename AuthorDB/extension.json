@@ -1,0 +1,80 @@
+{
+	"name": "AuthorDB",
+	"version": "1.1.0",
+	"author": [
+		"SST-1M Collaboration"
+	],
+	"url": "https://github.com/your-org/sst1m-author-db",
+	"descriptionmsg": "authordb-desc",
+	"license-name": "MIT",
+	"type": "specialpage",
+	"requires": {
+		"MediaWiki": ">= 1.39.0"
+	},
+	"manifest_version": 2,
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\AuthorDB\\": "src/"
+	},
+	"SpecialPages": {
+		"AuthorDB": "MediaWiki\\Extension\\AuthorDB\\SpecialAuthorDB"
+	},
+	"Hooks": {
+		"ParserFirstCallInit": "main"
+	},
+	"HookHandlers": {
+		"main": {
+			"class": "MediaWiki\\Extension\\AuthorDB\\Hooks"
+		}
+	},
+	"MessagesDirs": {
+		"AuthorDB": [
+			"i18n"
+		]
+	},
+	"ResourceModules": {
+		"ext.authorDB.frame": {
+			"scripts": [
+				"resources/ext.authorDB.frame.js"
+			]
+		}
+	},
+	"ResourceFileModulePaths": {
+		"localBasePath": "",
+		"remoteExtPath": "AuthorDB"
+	},
+	"AvailableRights": [
+		"manage-authors"
+	],
+	"GroupPermissions": {
+		"sysop": {
+			"manage-authors": true
+		}
+	},
+	"config": {
+		"AuthorDBBaseUrl": {
+			"value": "/authordb",
+			"description": "Base URL of the embedded FastAPI Authorship DB app, as seen by the browser. Use a same-origin reverse-proxy path (e.g. /authordb) for the smoothest iframe + cookie behaviour."
+		},
+		"AuthorDBSecret": {
+			"value": "",
+			"description": "Shared HMAC secret used to sign the SSO handoff token. MUST be identical to the app's AUTHOR_DB_SECRET environment variable. Leave empty to disable SSO (read-only embed only)."
+		},
+		"AuthorDBSsoTtl": {
+			"value": 60,
+			"description": "Lifetime in seconds of a minted SSO handoff token. Keep this short (the token is consumed immediately when the iframe loads)."
+		},
+		"AuthorDBFrameHeight": {
+			"value": "1400",
+			"description": "Fallback min-height in pixels of the embedded iframe, used only when JavaScript is disabled. With JS enabled the ext.authorDB.frame module auto-sizes the frame to its content."
+		},
+		"AuthorDBInternalUrl": {
+			"value": "http://127.0.0.1:8489/authordb",
+			"description": "Server-side base URL the wiki uses to fetch fragments from the app (the <authordb-list/> parser tag). Unlike AuthorDBBaseUrl this is resolved from PHP on the wiki server, so it can point straight at uvicorn — but it must still include the app's ROOT_PATH prefix."
+		},
+		"AuthorDBListCacheTtl": {
+			"value": 300,
+			"description": "Parser cache TTL in seconds for pages containing <authordb-list/> — how stale the embedded author list may get before the page re-fetches it from the app."
+		}
+	},
+	"load_composer_autoloader": false
+}

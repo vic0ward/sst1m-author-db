@@ -22,16 +22,49 @@ from xml.sax.saxutils import escape
 from fastapi.staticfiles import StaticFiles
 
 APP_NAME = "Authorship DB"
-DB_URL = "sqlite:///./authorship.db"
+# Database location. Overridable so a hardened deployment can keep the code
+# directory read-only and put the SQLite file in a writable state dir, e.g.
+# AUTHORDB_DB_URL=sqlite:////var/lib/authordb/authorship.db
+DB_URL = os.environ.get("AUTHORDB_DB_URL", "sqlite:///./authorship.db")
+
+# -------------------------
+# Deployment configuration
+# -------------------------
+# When embedded inside MediaWiki (as Special:AuthorDB via an iframe + SSO),
+# set AUTHORDB_EMBEDDED=1. This disables the standalone password login and the
+# default-admin seeding, so the wiki SSO bridge is the only way to gain admin.
+EMBEDDED = os.environ.get("AUTHORDB_EMBEDDED", "").lower() in ("1", "true", "yes")
+# Mount prefix when served behind a reverse proxy (e.g. "/authordb"). Lets
+# FastAPI generate correct absolute redirects/URLs under the proxy path.
+ROOT_PATH = os.environ.get("ROOT_PATH", "")
+# Space-separated list of origins allowed to iframe this app (the wiki origin),
+# e.g. "https://wiki.example.org". Used for the CSP frame-ancestors header.
+FRAME_ANCESTORS = os.environ.get("AUTHORDB_FRAME_ANCESTORS", "")
+# Mark session cookies Secure (set in production / behind HTTPS).
+COOKIE_SECURE = os.environ.get("AUTHORDB_COOKIE_SECURE", "").lower() in ("1", "true", "yes")
 
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-app = FastAPI(title=APP_NAME)
+app = FastAPI(title=APP_NAME, root_path=ROOT_PATH)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+# Templates prefix all absolute URLs with {{ root_path }} so links keep working
+# when the app is served behind a reverse-proxy path (e.g. /authordb).
+templates.env.globals["root_path"] = ROOT_PATH
+
+
+@app.middleware("http")
+async def frame_security_headers(request: Request, call_next):
+    """Allow the configured wiki to iframe this app, and nobody else."""
+    response = await call_next(request)
+    if FRAME_ANCESTORS:
+        response.headers["Content-Security-Policy"] = (
+            f"frame-ancestors 'self' {FRAME_ANCESTORS}"
+        )
+    return response
 
 
 def generate_xml_id(session):
@@ -128,6 +161,9 @@ class Author(Base):
         lazy="joined",
     )
 
+    def display_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
 
 class AdminUser(Base):
     __tablename__ = "admin_users"
@@ -194,6 +230,34 @@ def read_cookie(cookie_value: str) -> Optional[SessionToken]:
         return None
 
 
+def read_sso_token(token: str) -> Optional[str]:
+    """Validate a short-lived SSO handoff token minted by MediaWiki.
+
+    Format (same scheme as the session cookie, signed with the shared SECRET):
+        base64url(json) + "." + base64url(hmac_sha256(SECRET, json))
+    Payload: {"u": <wiki username>, "exp": <unix ts>, "typ": "sso"}
+
+    Returns the wiki username on success, or None if invalid/expired/wrong type.
+    """
+    try:
+        b64, sig = token.split(".", 1)
+        data = base64.urlsafe_b64decode(b64.encode("utf-8"))
+        if not hmac.compare_digest(sig, _sign(data)):
+            return None
+        payload = json.loads(data.decode("utf-8"))
+        if payload.get("typ") != "sso":
+            return None
+        # Compare against the true POSIX epoch (timezone-aware), since PHP mints
+        # `exp` with time(). Note: naive datetime.utcnow().timestamp() would be
+        # wrong on hosts whose local timezone is not UTC.
+        if datetime.now(timezone.utc).timestamp() > float(payload["exp"]):
+            return None
+        username = payload.get("u")
+        return username if username else None
+    except Exception:
+        return None
+
+
 def require_admin(request: Request) -> str:
     """
 
@@ -210,6 +274,10 @@ def require_admin(request: Request) -> str:
 
 def ensure_default_admin(db: Session) -> None:
     # Create a default admin if none exists (MVP). Change immediately after first run.
+    # In embedded mode the wiki SSO is the only entry point, so we never seed a
+    # password account (avoids the admin/admin123 bypass).
+    if EMBEDDED:
+        return
     if db.query(AdminUser).count() == 0:
         username = "admin"
         password = "admin123"
@@ -233,20 +301,56 @@ def home(request: Request, db: Session = Depends(get_db)):
 
     author_count = db.query(Author).count()
 
+    # Holders of a valid admin session (wiki SSO handoff or standalone login)
+    # get an [Edit] button on Home; read-only visitors see just the table.
+    cookie = request.cookies.get(SESSION_COOKIE)
+    is_admin = bool(cookie and read_cookie(cookie))
+
     return templates.TemplateResponse(
+        request,
         "home.html",
         {
-            "request": request,
             "app_name": APP_NAME,
             "author_count": author_count,
             "authors": authors,
+            "is_admin": is_admin,
         },
     )
 
 
+@app.get("/sso")
+def sso(token: str):
+    """SSO handoff endpoint for the MediaWiki Special:AuthorDB integration.
+
+    MediaWiki mints a short-lived, HMAC-signed token for a logged-in wiki user
+    who holds the 'manage-authors' right, then loads this app in an iframe at
+    /sso?token=... . We validate the token and establish the normal admin
+    session cookie, so the rest of the app works unchanged.
+    """
+    username = read_sso_token(token)
+    if not username:
+        raise HTTPException(status_code=403, detail="Invalid or expired SSO token")
+
+    # Land on the read-only Home view first; the admin session cookie set below
+    # already grants /admin, reachable via the [Edit] button on Home.
+    # resp = RedirectResponse(url=f"{ROOT_PATH}/admin", status_code=303)
+    resp = RedirectResponse(url=f"{ROOT_PATH}/", status_code=303)
+    resp.set_cookie(
+        SESSION_COOKIE,
+        make_cookie(username),
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE,
+    )
+    return resp
+
+
 @app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "app_name": APP_NAME})
+    # In embedded mode the wiki is the only entry point; hide the password form.
+    if EMBEDDED:
+        return RedirectResponse(url=f"{ROOT_PATH}/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"app_name": APP_NAME})
 
 
 @app.post("/login")
@@ -256,23 +360,34 @@ def login_post(
         password: str = Form(...),
         db: Session = Depends(get_db),
 ):
+    # Disable password login when embedded — only the wiki SSO bridge may grant admin.
+    if EMBEDDED:
+        raise HTTPException(status_code=404, detail="Not found")
+
     ensure_default_admin(db)
     user = db.query(AdminUser).filter(AdminUser.username == username).first()
     if not user or not pwd_context.verify(password, user.password_hash):
         return templates.TemplateResponse(
+            request,
             "login.html",
-            {"request": request, "app_name": APP_NAME, "error": "Login incorrect."},
+            {"app_name": APP_NAME, "error": "Login incorrect."},
             status_code=401,
         )
 
-    resp = RedirectResponse(url="/admin", status_code=303)
-    resp.set_cookie(SESSION_COOKIE, make_cookie(username), httponly=True, samesite="lax")
+    resp = RedirectResponse(url=f"{ROOT_PATH}/admin", status_code=303)
+    resp.set_cookie(
+        SESSION_COOKIE,
+        make_cookie(username),
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE,
+    )
     return resp
 
 
 @app.post("/logout")
 def logout():
-    resp = RedirectResponse(url="/", status_code=303)
+    resp = RedirectResponse(url=f"{ROOT_PATH}/", status_code=303)
     resp.delete_cookie(SESSION_COOKIE)
     return resp
 
@@ -286,9 +401,9 @@ def admin_list(request: Request, db: Session = Depends(get_db)):
     authors = db.query(Author).order_by(Author.last_name.asc(), Author.first_name.asc()).all()
     affiliations = db.query(Affiliation).order_by(Affiliation.short_name.asc()).all()
     return templates.TemplateResponse(
+        request,
         "admin_list.html",
         {
-            "request": request,
             "app_name": APP_NAME,
             "authors": authors,
             "affiliations": affiliations
@@ -302,9 +417,9 @@ def author_list(request: Request, db: Session = Depends(get_db)):
     auths = db.query(Author).order_by(Author.last_name.asc(), Author.last_name.asc()).all()
     affiliations = db.query(Affiliation).order_by(Affiliation.short_name.asc()).all()
     return templates.TemplateResponse(
+        request,
         "author_list.html",
         {
-            "request": request,
             "app_name": APP_NAME,
             "authors": auths,
             "affiliations": affiliations
@@ -317,9 +432,9 @@ def authors_new(request: Request, db: Session = Depends(get_db)):
     _ = require_admin(request)
     affiliations = db.query(Affiliation).order_by(Affiliation.short_name.asc()).all()
     return templates.TemplateResponse(
+        request,
         "author_edit.html",
         {
-            "request": request,
             "app_name": APP_NAME,
             "author": None,
             "affiliations": affiliations
@@ -357,7 +472,7 @@ def author_new_post(
     )
     db.add(a)
     db.commit()
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse(url=f"{ROOT_PATH}/admin", status_code=303)
 
 
 @app.get("/admin/author/edit/{author_id}", response_class=HTMLResponse)
@@ -368,9 +483,9 @@ def author_edit(request: Request, author_id: int, db: Session = Depends(get_db))
         raise HTTPException(404, "Author not found")
     affs = db.query(Affiliation).order_by(Affiliation.short_name.asc()).all()
     return templates.TemplateResponse(
+        request,
         "author_edit.html",
         {
-            "request": request,
             "app_name": APP_NAME,
             "author": auth,
             "affiliations": affs
@@ -410,7 +525,7 @@ def author_edit_post(
     author.active = active
     author.updated_at = datetime.utcnow()
     db.commit()
-    return RedirectResponse(url="/admin/author", status_code=303)
+    return RedirectResponse(url=f"{ROOT_PATH}/admin/author", status_code=303)
 
 
 @app.post("/admin/author/delete/{author_id}")
@@ -420,7 +535,7 @@ def author_delete(request: Request, author_id: int, db: Session = Depends(get_db
     if author:
         db.delete(author)
         db.commit()
-    return RedirectResponse(url="/admin/author", status_code=303)
+    return RedirectResponse(url=f"{ROOT_PATH}/admin/author", status_code=303)
 
 
 @app.get("/admin/affiliation", response_class=HTMLResponse)
@@ -428,9 +543,9 @@ def affiliation_list(request: Request, db: Session = Depends(get_db)):
     _ = require_admin(request)
     affs = db.query(Affiliation).order_by(Affiliation.short_name.asc()).all()
     return templates.TemplateResponse(
+        request,
         "affiliation_list.html",
         {
-            "request": request,
             "app_name": APP_NAME,
             "affiliations": affs
         },
@@ -441,8 +556,9 @@ def affiliation_list(request: Request, db: Session = Depends(get_db)):
 def affiliation_new(request: Request):
     _ = require_admin(request)
     return templates.TemplateResponse(
+        request,
         "affiliation_edit.html",
-        {"request": request, "app_name": APP_NAME, "affiliation": None},
+        {"app_name": APP_NAME, "affiliation": None},
     )
 
 
@@ -455,7 +571,7 @@ def affiliation_new_post(
         institution: str = Form(""),
         street: str = Form(""),
         city: str = Form(""),
-        postal_code: str = Form(None),
+        postal_code: str = Form(""),  # was Form(None) — None crashed .strip() below on empty submit
         country: str = Form(""),
         db: Session = Depends(get_db),
 ):
@@ -473,7 +589,7 @@ def affiliation_new_post(
     )
     db.add(a)
     db.commit()
-    return RedirectResponse(url="/admin/affiliation", status_code=303)
+    return RedirectResponse(url=f"{ROOT_PATH}/admin/affiliation", status_code=303)
 
 
 @app.get("/admin/affiliation/edit/{aff_id}", response_class=HTMLResponse)
@@ -483,9 +599,9 @@ def affiliation_edit(request: Request, aff_id: int, db: Session = Depends(get_db
     if not aff:
         raise HTTPException(404, "Affiliation not found")
     return templates.TemplateResponse(
+        request,
         "affiliation_edit.html",
         {
-            "request": request,
             "app_name": APP_NAME,
             "affiliation": aff
         },
@@ -501,7 +617,7 @@ def affiliation_edit_post(
         institution: str = Form(""),
         street: str = Form(""),
         city: str = Form(""),
-        postal_code: str = Form(None),
+        postal_code: str = Form(""),  # was Form(None) — None crashed .strip() below on empty submit
         country: str = Form(""),
         db: Session = Depends(get_db),
 ):
@@ -519,7 +635,7 @@ def affiliation_edit_post(
     aff.country = country.strip()
     aff.updated_at = datetime.utcnow()
     db.commit()
-    return RedirectResponse(url="/admin/affiliation", status_code=303)
+    return RedirectResponse(url=f"{ROOT_PATH}/admin/affiliation", status_code=303)
 
 
 @app.post("/admin/affiliation/delete/{aff_id}")
@@ -532,7 +648,7 @@ def affiliation_delete(request: Request, aff_id: int, db: Session = Depends(get_
             raise HTTPException(400, "Affiliation is used by authors; unlink first.")
         db.delete(affiliations)
         db.commit()
-    return RedirectResponse(url="/admin/affiliation", status_code=303)
+    return RedirectResponse(url=f"{ROOT_PATH}/admin/affiliation", status_code=303)
 
 
 # -------------------------
@@ -708,6 +824,38 @@ def export_xml(db: Session = Depends(get_db)):
 
     return Response(content="\n".join(out).encode("utf-8"), media_type="application/xml")
 
+
+@app.get("/export.wiki")
+def export_wiki(db: Session = Depends(get_db)):
+    """Author list as a MediaWiki markup fragment (used by the <authordb-list/> parser tag)."""
+    authors = fetch_active_qualified(db)
+
+    # Affiliation indices 1..N (same scheme as /export.tex)
+    used_affs = {}
+    for au in authors:
+        for aff in au.affiliations:
+            used_affs[aff.id] = aff
+    aff_list = [used_affs[k] for k in sorted(used_affs.keys())]
+    aff_index = {aff.id: i + 1 for i, aff in enumerate(aff_list)}
+
+    entries = []
+    for au in authors:
+        name = (paper_initials(au.first_name) + " " + au.last_name).strip()
+        idxs = [aff_index[a.id] for a in au.affiliations if a.id in aff_index]
+        sup = f"<sup>{','.join(str(i) for i in idxs)}</sup>" if idxs else ""
+        entries.append(name + sup)
+
+    aff_lines = []
+    for aff in aff_list:
+        addr = aff.full_address().strip()
+        if addr and not addr.endswith("."):
+            addr += "."
+        aff_lines.append(f"<sup>{aff_index[aff.id]}</sup>{addr} <br>")
+
+    wiki = ", ".join(entries) + "\n\n<small>\n" + "\n".join(aff_lines) + "\n</small>\n"
+    return PlainTextResponse(wiki, media_type="text/plain; charset=utf-8")
+
+
 @app.post("/admin/import/xml")
 async def import_xml(
         request: Request,
@@ -827,4 +975,4 @@ async def import_xml(
 
     db.commit()
 
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse(url=f"{ROOT_PATH}/admin", status_code=303)
