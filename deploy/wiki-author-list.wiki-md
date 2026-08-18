@@ -1,0 +1,48 @@
+= Author List =
+
+; Maintenance  
+: The author list is maintained by the members of the '''Steering Committee'''.
+
+; Up-to-date Author List
+: Manual list (will be replaced by the auto-generated soon):
+
+C. Alispach<sup>1</sup>, A. Araudo<sup>2</sup>, M. Balbo<sup>1</sup>, , A. Bakalova<sup>2</sup>, V. Beshley<sup>3</sup>, J. Blažek<sup>2</sup>, P. Bořil<sup>2</sup>, J. Borkowski<sup>4</sup>, T. Bulik<sup>6</sup>, F. Cadoux<sup>1</sup>, S. Casanova<sup>5</sup>, A. Christov<sup>2</sup>, J. Chudoba<sup>2</sup>, L. Chytka<sup>7</sup>, P. Čechvala<sup>2</sup>, P. Dědic<sup>2</sup>, T. Dietrich<sup>16</sup>, Y. Favre<sup>1</sup>, L. Gantel<sup>16</sup>, M. Garczarczyk<sup>8</sup>, L. Gibaud<sup>9</sup>, T. Gieras<sup>5</sup>, E. Głowacki<sup>9</sup>, P. Hamal<sup>7</sup>, M. Heller<sup>1</sup>, M. Hrabovský<sup>7</sup>, P. Janeček<sup>2</sup>, M. Jelínek<sup>10</sup>, V. Jílek<sup>7</sup>, J. Juryšek<sup>2</sup>, V. Karas<sup>11</sup>, J. Kvapil<sup>16</sup>, B. Lacave<sup>1</sup>, E. Lyard<sup>12</sup>, D. Mandát<sup>2</sup>, W. Marek<sup>5</sup>, A. McMullin<sup>1</sup>, S. Michal<sup>7</sup>, J. Michałowski<sup>5</sup>, M. Miroń<sup>9</sup>, R. Moderski<sup>4</sup>, T. Montaruli<sup>1</sup>, A. Muraczewski<sup>4</sup>, S. R. Muthyala<sup>2</sup>, A. L. Müller<sup>2</sup>, A. Nagai<sup>1</sup>, K. Nalewajski<sup>5</sup>, D. Neise<sup>13</sup>, J. Niemiec<sup>5</sup>, M. Nikołajuk<sup>9</sup>, V. Novotný<sup>2,14</sup>, M. Ostrowski<sup>15</sup>, M. Palatka<sup>2</sup>, M. Pech<sup>2</sup>, M. Prouza<sup>2</sup>, P. Schovanek<sup>2</sup>, T. Schulz<sup>2</sup>, V. Sliusar<sup>12</sup>, J. Srba<sup>10</sup>, Ł. Stawarz<sup>15</sup>, R. Sternberger<sup>8</sup>, J. Świerblewski<sup>5</sup>, P. Świerk<sup>5</sup>, J. Štrobl<sup>10</sup>, T. Tavernier<sup>2</sup>, P. Trávníček<sup>2</sup>, A. Upegui<sup>16</sup>, M. Vacula<sup>7</sup>, J. Vícha<sup>2</sup>, R. Walter<sup>12</sup>, K. Ziȩtara<sup>15</sup>
+
+<small>
+<sup>1</sup>Département de Physique Nucléaire, Faculté de Sciences, Université de Genève, 24 Quai Ernest Ansermet, CH-1205 Genève, Switzerland. <br> 
+<sup>2</sup>FZU - Institute of Physics of the Czech Academy of Sciences, Na Slovance 1999/2, Prague 8, Czech Republic. <br>
+<sup>3</sup>Pidstryhach Institute for Applied Problems of Mechanics and Mathematics, National Academy of Sciences of Ukraine, 3-b Naukova St., 79060, Lviv, Ukraine. <br>
+<sup>4</sup>Nicolaus Copernicus Astronomical Center, Polish Academy of Sciences, ul. Bartycka 18, 00-716 Warsaw, Poland. <br>
+<sup>5</sup>Institute of Nuclear Physics, Polish Academy of Sciences, PL-31342 Krakow, Poland. <br>
+<sup>6</sup>Astronomical Observatory, University of Warsaw, Al. Ujazdowskie 4, 00-478 Warsaw, Poland. <br>
+<sup>7</sup>Palacký University Olomouc, Faculty of Science, 17. listopadu 50, Olomouc, Czech Republic. <br>
+<sup>8</sup>Deutsches Elektronen-Synchrotron (DESY), Platanenallee 6, D-15738 Zeuthen, Germany. <br>
+<sup>9</sup>Faculty of Physics, University of Białystok, ul. K. Ciołkowskiego 1L, 15-245 Białystok, Poland. <br>
+<sup>10</sup>Astronomical Institute of the Czech Academy of Sciences, Fričova 298, CZ-25165 Ondřejov, Czech Republic. <br>
+<sup>11</sup>Astronomical Institute of the Czech Academy of Sciences, Boční II 1401, CZ-14100 Prague, Czech Republic. <br>
+<sup>12</sup>Département d’Astronomie, Faculté de Science, Université de Genève, Chemin d’Ecogia 16, CH-1290 Versoix, Switzerland. <br>
+<sup>13</sup>ETH Zurich, Institute for Particle Physics and Astrophysics, Otto-Stern-Weg 5, 8093 Zurich, Switzerland. <br>
+<sup>14</sup>Institute of Particle and Nuclear Physics, Faculty of Mathematics and Physics, Charles University, V Holešovičkách 2, Prague 8, Czech Republic. <br>
+<sup>15</sup>Astronomical Observatory, Jagiellonian University, ul. Orla 171, 30-244 Krakow, Poland. <br>
+<sup>16</sup>Haute École du Paysage, d'Ingénierie et d'Architecture de Genève, Haute Ecole Spécialisée de Suisse occidentale , Rue de la Prairie 4, 1202 Geneva, Switzerland.<br>
+</small>
+
+
+; Up-to-date Author List  
+: EXPERIMENTAL! DO NOT USE FOR PUBLICATION YET! The current author list (generated automatically from the Authorship Database):
+
+<div style="color:#2020C0;">
+<authordb-list/>
+</div>
+
+; XML File
+: The up-to-date XML version of the list can be found here:  
+: '''[[File:Author_sst1m_20260623_xml.zip]]'''
+
+; TeX Format  
+: The up-to-date TeX version of the list can be found here:  
+: '''[[File:Sst1m_authorlist_20260623_txt.zip]]'''
+
+; Authorship Database
+: Contains the author list and allows to add/remove/edit list entries (an user needs to be a member of "authordb-editor" group):  
+: '''[[Special:AuthorDB|Authorship Database]]'''
