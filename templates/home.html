@@ -10,6 +10,13 @@
         <p><a href="/login">Login</a> (admins only)</p>
 </div>
 
+<div class="card">
+    <h2>Download latest author list</h2>
+    <a class="button" href="/export.txt"> Text (.txt)</a>
+    <a class="button" href="/export.tex"> LaTeX (.tex)</a>
+    <a class="button" href="/export.xml"> XML (.xml)</a>
+</div>
+
 <p>Authors in database: <b>{{ author_count }}</b></p>
 
 <table border="1" cellpadding="6" cellspacing="0">
@@ -37,14 +44,5 @@
     {% endfor %}
 </table>
 
-<h2>Download latest author list</h2>
-<ul>
-    <li><a href="/export.txt">Text (.txt)</a></li>
-    <li><a href="/export.tex">LaTeX (.tex)</a></li>
-    <li><a href="/export.xml">XML (.xml)</a></li>
-</ul>
-
-<h2>Admin</h2>
-<p><a href="/login">Login</a> (admins only)</p>
 </body>
 </html>

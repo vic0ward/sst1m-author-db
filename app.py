@@ -455,7 +455,7 @@ def affiliation_new_post(
         institution: str = Form(""),
         street: str = Form(""),
         city: str = Form(""),
-        postal_code: str = Form(None),
+        postal_code: str = Form(""),
         country: str = Form(""),
         db: Session = Depends(get_db),
 ):
@@ -706,7 +706,13 @@ def export_xml(db: Session = Depends(get_db)):
     out.append("    </cal:authors>")
     out.append("</collaborationauthorlist>\n")
 
-    return Response(content="\n".join(out).encode("utf-8"), media_type="application/xml")
+    filename = f"sst1m_author_list_{datetime.utcnow().strftime('%Y%m%d')}.xml"
+
+    return Response(
+        content="\n".join(out).encode("utf-8"),
+        media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 @app.post("/admin/import/xml")
 async def import_xml(

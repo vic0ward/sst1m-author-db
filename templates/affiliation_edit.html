@@ -11,7 +11,7 @@
     </div>
 
     <div class="card">
-        <form method="post" action="{{ '/admin/author/new' if not author else '/admin/author/edit/' ~ author.id }}">
+        <form method="post" action="{{ '/admin/affiliation/new' if not author else '/admin/affiliation/edit/' ~ affiliation.id }}">
             <label>Short name <input name="short_name" value="{{ '' if not affiliation else affiliation.short_name }}"></label><br>
             <label>Department <input name="department" value="{{ '' if not affiliation else affiliation.department }}"></label><br>
             <label>Institution <input name="institution" value="{{ '' if not affiliation else affiliation.institution }}"></label><br>
