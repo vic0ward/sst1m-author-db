@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone, date
@@ -99,6 +100,51 @@ def split_address(address: str):
     city = parts[-2] if len(parts) >= 2 else ""
     street = ", ".join(parts[1:-2]) if len(parts) > 3 else ""
     return street, "", city, country
+
+
+# Characters that Unicode NFKD does not reduce to their basic Latin letter.
+# This keeps Polish/Czech/etc. surnames in the expected alphabetical position.
+_SORT_TRANSLATION = str.maketrans({
+    "ł": "l", "Ł": "L",
+    "đ": "d", "Đ": "D",
+    "ð": "d", "Ð": "D",
+    "þ": "th", "Þ": "Th",
+    "ø": "o", "Ø": "O",
+    "æ": "ae", "Æ": "Ae",
+    "œ": "oe", "Œ": "Oe",
+})
+
+
+def alphabetic_sort_key(value: str) -> str:
+    """Return an accent-insensitive, case-insensitive key for human name sorting."""
+    value = (value or "").translate(_SORT_TRANSLATION)
+    normalized = unicodedata.normalize("NFKD", value)
+    without_accents = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return without_accents.casefold()
+
+
+def sort_authors(authors: List["Author"]) -> List["Author"]:
+    return sorted(
+        authors,
+        key=lambda a: (
+            alphabetic_sort_key(a.last_name),
+            alphabetic_sort_key(a.first_name),
+            a.last_name.casefold(),
+            a.first_name.casefold(),
+        ),
+    )
+
+
+def affiliations_by_first_appearance(authors: List["Author"]) -> List["Affiliation"]:
+    """List affiliations in the order they first occur in the sorted author list."""
+    seen = set()
+    ordered = []
+    for author in authors:
+        for affiliation in author.affiliations:
+            if affiliation.id not in seen:
+                seen.add(affiliation.id)
+                ordered.append(affiliation)
+    return ordered
 
 
 # -------------------------
@@ -292,10 +338,9 @@ def ensure_default_admin(db: Session) -> None:
 def home(request: Request, db: Session = Depends(get_db)):
     ensure_default_admin(db)
 
-    authors = (
+    authors = sort_authors(
         db.query(Author)
             .filter(Author.active == True)
-            .order_by(Author.last_name.asc(), Author.first_name.asc())
             .all()
     )
 
@@ -398,7 +443,7 @@ def logout():
 @app.get("/admin", response_class=HTMLResponse)
 def admin_list(request: Request, db: Session = Depends(get_db)):
     _ = require_admin(request)
-    authors = db.query(Author).order_by(Author.last_name.asc(), Author.first_name.asc()).all()
+    authors = sort_authors(db.query(Author).all())
     affiliations = db.query(Affiliation).order_by(Affiliation.short_name.asc()).all()
     return templates.TemplateResponse(
         request,
@@ -414,7 +459,7 @@ def admin_list(request: Request, db: Session = Depends(get_db)):
 @app.get("/admin/author", response_class=HTMLResponse)
 def author_list(request: Request, db: Session = Depends(get_db)):
     _ = require_admin(request)
-    auths = db.query(Author).order_by(Author.last_name.asc(), Author.last_name.asc()).all()
+    auths = sort_authors(db.query(Author).all())
     affiliations = db.query(Affiliation).order_by(Affiliation.short_name.asc()).all()
     return templates.TemplateResponse(
         request,
@@ -655,12 +700,12 @@ def affiliation_delete(request: Request, aff_id: int, db: Session = Depends(get_
 # Exports
 # -------------------------
 def fetch_active_qualified(db: Session) -> List[Author]:
-    return (
+    authors = (
         db.query(Author)
             .filter(Author.active == True, Author.qualified == True)  # noqa: E712
-            .order_by(Author.last_name.asc(), Author.first_name.asc())
             .all()
     )
+    return sort_authors(authors)
 
 
 @app.get("/export.txt")
@@ -670,25 +715,14 @@ def export_txt(db: Session = Depends(get_db)):
     return PlainTextResponse("\n".join(lines) + ("\n" if lines else ""), media_type="text/plain")
 
 
-def fetch_active_qualified(db: Session) -> List[Author]:
-    return (
-        db.query(Author)
-            .filter(Author.active == True, Author.qualified == True)  # noqa: E712
-            .order_by(Author.last_name.asc(), Author.first_name.asc())
-            .all()
-    )
-
-
 @app.get("/export.tex")
 def export_tex(db: Session = Depends(get_db)):
     authors = fetch_active_qualified(db)
 
-    # Affiliation indices 1..N (stables)
-    used_affs = {}
-    for au in authors:
-        for aff in au.affiliations:
-            used_affs[aff.id] = aff
-    aff_list = [used_affs[k] for k in sorted(used_affs.keys())]
+    # Affiliation indices 1..N in order of first appearance in the author list.
+    # The first author's first affiliation is 1; new affiliations encountered
+    # for subsequent authors receive the next available number.
+    aff_list = affiliations_by_first_appearance(authors)
     aff_index = {aff.id: i + 1 for i, aff in enumerate(aff_list)}
 
     def initials(first: str) -> str:
@@ -739,12 +773,8 @@ def paper_initials(first: str) -> str:
 def export_xml(db: Session = Depends(get_db)):
     authors = fetch_active_qualified(db)
 
-    # collect used affiliations
-    used = {}
-    for au in authors:
-        for aff in au.affiliations:
-            used[aff.id] = aff
-    aff_list = [used[k] for k in sorted(used.keys())]
+    # Affiliation list in order of first appearance in the author list.
+    aff_list = affiliations_by_first_appearance(authors)
 
     # organization ids: prefer stored xml_id; else auto a1,a2,...
     auto_idx = 1
