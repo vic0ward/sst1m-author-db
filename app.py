@@ -699,6 +699,191 @@ def affiliation_delete(request: Request, aff_id: int, db: Session = Depends(get_
 
 
 # -------------------------
+# Portable database backup / restore
+# -------------------------
+BACKUP_FORMAT = "sst1m-authorship-db"
+BACKUP_VERSION = 1
+
+
+def _dt_to_iso(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.isoformat()
+    return str(value)
+
+
+def _parse_backup_datetime(value, field_name: str):
+    if value in (None, ""):
+        return datetime.now(timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(400, f"Invalid datetime in {field_name}: {value}") from exc
+
+
+def _validate_backup_payload(data):
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Backup must contain a JSON object.")
+    if data.get("format") != BACKUP_FORMAT:
+        raise HTTPException(400, f"Unsupported backup format: {data.get('format')!r}")
+    if data.get("version") != BACKUP_VERSION:
+        raise HTTPException(400, f"Unsupported backup version: {data.get('version')!r}")
+
+    affiliations = data.get("affiliations")
+    authors = data.get("authors")
+    if not isinstance(affiliations, list) or not isinstance(authors, list):
+        raise HTTPException(400, "Backup must contain 'affiliations' and 'authors' lists.")
+
+    aff_ids = set()
+    for i, aff in enumerate(affiliations):
+        if not isinstance(aff, dict):
+            raise HTTPException(400, f"Affiliation #{i + 1} is not an object.")
+        old_id = aff.get("id")
+        if not isinstance(old_id, int):
+            raise HTTPException(400, f"Affiliation #{i + 1} has no valid integer id.")
+        if old_id in aff_ids:
+            raise HTTPException(400, f"Duplicate affiliation id {old_id} in backup.")
+        aff_ids.add(old_id)
+
+    for i, author in enumerate(authors):
+        if not isinstance(author, dict):
+            raise HTTPException(400, f"Author #{i + 1} is not an object.")
+        if not str(author.get("last_name") or "").strip():
+            raise HTTPException(400, f"Author #{i + 1} has no last_name.")
+        links = author.get("affiliation_ids", [])
+        if not isinstance(links, list) or any(not isinstance(x, int) for x in links):
+            raise HTTPException(400, f"Author #{i + 1} has invalid affiliation_ids.")
+        missing = [x for x in links if x not in aff_ids]
+        if missing:
+            raise HTTPException(400, f"Author #{i + 1} references unknown affiliation id(s): {missing}")
+
+    return affiliations, authors
+
+
+@app.get("/admin/export/backup")
+def export_database_backup(request: Request, db: Session = Depends(get_db)):
+    _ = require_admin(request)
+
+    affiliations = db.query(Affiliation).order_by(Affiliation.id.asc()).all()
+    authors = sort_authors(db.query(Author).all())
+
+    payload = {
+        "format": BACKUP_FORMAT,
+        "version": BACKUP_VERSION,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "affiliations": [
+            {
+                "id": aff.id,
+                "xml_id": aff.xml_id,
+                "short_name": aff.short_name,
+                "department": aff.department,
+                "institution": aff.institution,
+                "street": aff.street,
+                "postal_code": aff.postal_code,
+                "city": aff.city,
+                "country": aff.country,
+                "updated_at": _dt_to_iso(aff.updated_at),
+            }
+            for aff in affiliations
+        ],
+        "authors": [
+            {
+                "id": author.id,
+                "first_name": author.first_name,
+                "last_name": author.last_name,
+                "email": author.email,
+                "orcid": author.orcid,
+                "qualified": bool(author.qualified),
+                "active": bool(author.active),
+                "member_since": author.member_since,
+                "updated_at": _dt_to_iso(author.updated_at),
+                "affiliation_ids": [aff.id for aff in author.affiliations],
+            }
+            for author in authors
+        ],
+    }
+
+    filename = f"sst1m_authorship_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    return Response(
+        content=json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/admin/import/backup")
+async def import_database_backup(
+        request: Request,
+        backup_file: UploadFile = File(...),
+        db: Session = Depends(get_db),
+):
+    _ = require_admin(request)
+
+    try:
+        raw = await backup_file.read()
+        data = json.loads(raw.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(400, f"Invalid JSON backup: {exc}") from exc
+
+    # Validate the complete document before modifying the database.
+    affiliations_data, authors_data = _validate_backup_payload(data)
+
+    try:
+        # AdminUser rows are deliberately untouched.
+        db.query(AuthorAffiliation).delete(synchronize_session=False)
+        db.query(Author).delete(synchronize_session=False)
+        db.query(Affiliation).delete(synchronize_session=False)
+        db.flush()
+
+        affiliation_map = {}
+        for item in affiliations_data:
+            aff = Affiliation(
+                xml_id=str(item.get("xml_id") or "").strip(),
+                short_name=str(item.get("short_name") or "").strip(),
+                department=str(item.get("department") or "").strip(),
+                institution=str(item.get("institution") or "").strip(),
+                street=str(item.get("street") or "").strip(),
+                postal_code=(str(item.get("postal_code")).strip() if item.get("postal_code") is not None else None),
+                city=str(item.get("city") or "").strip(),
+                country=str(item.get("country") or "").strip(),
+                updated_at=_parse_backup_datetime(item.get("updated_at"), "affiliation.updated_at"),
+            )
+            db.add(aff)
+            db.flush()
+            affiliation_map[item["id"]] = aff
+
+        for item in authors_data:
+            author = Author(
+                first_name=str(item.get("first_name") or "").strip(),
+                last_name=str(item.get("last_name") or "").strip(),
+                email=str(item.get("email") or "").strip(),
+                orcid=str(item.get("orcid") or "").strip(),
+                qualified=bool(item.get("qualified", True)),
+                active=bool(item.get("active", True)),
+                member_since=str(item.get("member_since") or "").strip(),
+                updated_at=_parse_backup_datetime(item.get("updated_at"), "author.updated_at"),
+            )
+            author.affiliations = [affiliation_map[old_id] for old_id in item.get("affiliation_ids", [])]
+            db.add(author)
+
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(400, f"Could not restore backup: {exc}") from exc
+
+    return RedirectResponse(url=f"{ROOT_PATH}/admin", status_code=303)
+
+
+# -------------------------
 # Exports
 # -------------------------
 def fetch_active_qualified(db: Session) -> List[Author]:
@@ -888,123 +1073,127 @@ def export_wiki(db: Session = Depends(get_db)):
     return PlainTextResponse(wiki, media_type="text/plain; charset=utf-8")
 
 
-@app.post("/admin/import/xml")
-async def import_xml(
-        request: Request,
-        xml_file: UploadFile = File(...),
-        db: Session = Depends(get_db),
-):
-    _ = require_admin(request)
-
-    content = await xml_file.read()
-
-    try:
-        root = ET.fromstring(content)
-    except ET.ParseError as e:
-        raise HTTPException(400, f"Invalid XML file: {e}")
-
-    org_by_xml_id = {}
-
-    # ---- import affiliations / organizations
-    for org in root.findall(".//foaf:Organization", NS):
-        xml_id = org.attrib.get("id", "").strip()
-        short_name = txt(org, "foaf:name")
-        address = txt(org, "cal:orgAddress")
-
-        if not short_name:
-            continue
-
-        aff = None
-
-        if xml_id:
-            aff = db.query(Affiliation).filter(Affiliation.xml_id == xml_id).first()
-
-        if aff is None:
-            aff = db.query(Affiliation).filter(Affiliation.short_name == short_name).first()
-
-        street, postal_code, city, country = split_address(address)
-
-        if aff is None:
-            aff = Affiliation(
-                xml_id=xml_id or generate_xml_id(db),
-                short_name=short_name,
-                institution=short_name,
-                street=street,
-                postal_code=postal_code,
-                city=city,
-                country=country,
-                updated_at=datetime.now(timezone.utc),
-            )
-            db.add(aff)
-            db.flush()
-        else:
-            aff.xml_id = aff.xml_id or xml_id or generate_xml_id(db)
-            aff.short_name = aff.short_name or short_name
-            aff.institution = aff.institution or short_name
-            aff.street = aff.street or street
-            aff.postal_code = aff.postal_code or postal_code
-            aff.city = aff.city or city
-            aff.country = aff.country or country
-            aff.updated_at = datetime.now(timezone.utc)
-
-        if xml_id:
-            org_by_xml_id[xml_id] = aff
-
-    # ---- import authors
-    for person in root.findall(".//foaf:Person", NS):
-        first_name = txt(person, "foaf:givenName")
-        last_name = txt(person, "foaf:familyName")
-
-        if not first_name and not last_name:
-            full_name = txt(person, "foaf:name")
-            pieces = full_name.split()
-            first_name = " ".join(pieces[:-1])
-            last_name = pieces[-1] if pieces else ""
-
-        if not last_name:
-            continue
-
-        orcid = ""
-        for aid in person.findall(".//cal:authorid", NS):
-            if aid.attrib.get("source", "").upper() == "ORCID":
-                orcid = aid.text.strip() if aid.text else ""
-
-        author = (
-            db.query(Author)
-                .filter(
-                Author.first_name == first_name,
-                Author.last_name == last_name,
-                )
-                .first()
-        )
-
-        if author is None:
-            author = Author(
-                first_name=first_name,
-                last_name=last_name,
-                orcid=orcid,
-                qualified=True,
-                active=True,
-                member_since=str(datetime.utcnow().year),
-                updated_at=datetime.now(timezone.utc),
-            )
-            db.add(author)
-            db.flush()
-        else:
-            if orcid and not author.orcid:
-                author.orcid = orcid
-            author.updated_at = datetime.now(timezone.utc)
-
-        affiliations = []
-        for aa in person.findall(".//cal:authorAffiliation", NS):
-            org_id = aa.attrib.get("organizationid", "").strip()
-            aff = org_by_xml_id.get(org_id)
-            if aff and aff not in affiliations:
-                affiliations.append(aff)
-
-        if affiliations:
-            author.affiliations = affiliations
-
-    db.commit()
-
-    return RedirectResponse(url=f"{ROOT_PATH}/admin", status_code=303)
+# Superseded by the JSON backup/restore above (/admin/export/backup,
+# /admin/import/backup) — XML round-trips lost fields (department,
+# email, active/qualified flags) that the JSON format preserves.
+# Kept commented out, not deleted, per project convention.
+# @app.post("/admin/import/xml")
+# async def import_xml(
+#         request: Request,
+#         xml_file: UploadFile = File(...),
+#         db: Session = Depends(get_db),
+# ):
+#     _ = require_admin(request)
+#
+#     content = await xml_file.read()
+#
+#     try:
+#         root = ET.fromstring(content)
+#     except ET.ParseError as e:
+#         raise HTTPException(400, f"Invalid XML file: {e}")
+#
+#     org_by_xml_id = {}
+#
+#     # ---- import affiliations / organizations
+#     for org in root.findall(".//foaf:Organization", NS):
+#         xml_id = org.attrib.get("id", "").strip()
+#         short_name = txt(org, "foaf:name")
+#         address = txt(org, "cal:orgAddress")
+#
+#         if not short_name:
+#             continue
+#
+#         aff = None
+#
+#         if xml_id:
+#             aff = db.query(Affiliation).filter(Affiliation.xml_id == xml_id).first()
+#
+#         if aff is None:
+#             aff = db.query(Affiliation).filter(Affiliation.short_name == short_name).first()
+#
+#         street, postal_code, city, country = split_address(address)
+#
+#         if aff is None:
+#             aff = Affiliation(
+#                 xml_id=xml_id or generate_xml_id(db),
+#                 short_name=short_name,
+#                 institution=short_name,
+#                 street=street,
+#                 postal_code=postal_code,
+#                 city=city,
+#                 country=country,
+#                 updated_at=datetime.now(timezone.utc),
+#             )
+#             db.add(aff)
+#             db.flush()
+#         else:
+#             aff.xml_id = aff.xml_id or xml_id or generate_xml_id(db)
+#             aff.short_name = aff.short_name or short_name
+#             aff.institution = aff.institution or short_name
+#             aff.street = aff.street or street
+#             aff.postal_code = aff.postal_code or postal_code
+#             aff.city = aff.city or city
+#             aff.country = aff.country or country
+#             aff.updated_at = datetime.now(timezone.utc)
+#
+#         if xml_id:
+#             org_by_xml_id[xml_id] = aff
+#
+#     # ---- import authors
+#     for person in root.findall(".//foaf:Person", NS):
+#         first_name = txt(person, "foaf:givenName")
+#         last_name = txt(person, "foaf:familyName")
+#
+#         if not first_name and not last_name:
+#             full_name = txt(person, "foaf:name")
+#             pieces = full_name.split()
+#             first_name = " ".join(pieces[:-1])
+#             last_name = pieces[-1] if pieces else ""
+#
+#         if not last_name:
+#             continue
+#
+#         orcid = ""
+#         for aid in person.findall(".//cal:authorid", NS):
+#             if aid.attrib.get("source", "").upper() == "ORCID":
+#                 orcid = aid.text.strip() if aid.text else ""
+#
+#         author = (
+#             db.query(Author)
+#                 .filter(
+#                 Author.first_name == first_name,
+#                 Author.last_name == last_name,
+#                 )
+#                 .first()
+#         )
+#
+#         if author is None:
+#             author = Author(
+#                 first_name=first_name,
+#                 last_name=last_name,
+#                 orcid=orcid,
+#                 qualified=True,
+#                 active=True,
+#                 member_since=str(datetime.utcnow().year),
+#                 updated_at=datetime.now(timezone.utc),
+#             )
+#             db.add(author)
+#             db.flush()
+#         else:
+#             if orcid and not author.orcid:
+#                 author.orcid = orcid
+#             author.updated_at = datetime.now(timezone.utc)
+#
+#         affiliations = []
+#         for aa in person.findall(".//cal:authorAffiliation", NS):
+#             org_id = aa.attrib.get("organizationid", "").strip()
+#             aff = org_by_xml_id.get(org_id)
+#             if aff and aff not in affiliations:
+#                 affiliations.append(aff)
+#
+#         if affiliations:
+#             author.affiliations = affiliations
+#
+#     db.commit()
+#
+#     return RedirectResponse(url=f"{ROOT_PATH}/admin", status_code=303)

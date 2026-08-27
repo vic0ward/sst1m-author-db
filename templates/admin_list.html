@@ -23,12 +23,27 @@
         </form>
     </div>
 
+    {# Batch import (XML) replaced by JSON database backup/restore below —
+       XML round-trips lost fields the JSON format preserves.
     <div class="card">
         <h2>Batch import</h2>
         <form method="post" action="{{ root_path }}/admin/import/xml" enctype="multipart/form-data">
             <input type="file" name="xml_file" accept=".xml">
             <br><br>
             <button type="submit">Import XML</button>
+        </form>
+    </div>
+    #}
+
+    <div class="card">
+        <h2>Database backup</h2>
+        <p>Portable backup of all authorship data, including author status, email, ORCID, full affiliation fields and author-affiliation links. Admin accounts are not included.</p>
+        <p><a class="button" href="{{ root_path }}/admin/export/backup">Export JSON backup</a></p>
+        <form method="post" action="{{ root_path }}/admin/import/backup" enctype="multipart/form-data"
+              onsubmit="return confirm('Restore this backup? Existing authors and affiliations will be replaced. Admin accounts will be kept.');">
+            <input type="file" name="backup_file" accept=".json,application/json" required>
+            <br><br>
+            <button type="submit">Restore JSON backup</button>
         </form>
     </div>
 
