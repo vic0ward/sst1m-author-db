@@ -22,13 +22,13 @@ Browser ─ http://wiki.sst1m.science ──► MediaWiki ── Special:AuthorD
   is the only path to admin.
 - Any wiki page can embed the always-current author list with the
   **`<authordb-list/>`** parser tag — the wiki server fetches the app's
-  `/export.wiki` markup fragment and refreshes it automatically.
+  `/export_authorlist.wiki` markup fragment and refreshes it automatically.
 
 ## What's in this repo for the integration
 
 | Path | Purpose |
 |---|---|
-| [`app.py`](app.py) | App changes: `/sso` endpoint, embedded-mode lockdown, CSP, `root_path`-aware URLs, `/export.wiki` fragment |
+| [`app.py`](app.py) | App changes: `/sso` endpoint, embedded-mode lockdown, CSP, `root_path`-aware URLs, `/export_authorlist.wiki` fragment |
 | [`AuthorDB/`](AuthorDB/) | The MediaWiki extension (copy into `extensions/`) |
 | [`deploy/`](deploy/) | systemd unit + reverse-proxy (Nginx/Apache) samples, preset for our deployment |
 | [`tools/sso_smoketest.py`](tools/sso_smoketest.py) | PHP↔Python SSO token contract test (no wiki needed) |
@@ -472,7 +472,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST \
 - [ ] Wiki fragment pro `<authordb-list/>`:
 
 ```bash
-curl -s http://127.0.0.1:8489/authordb/export.wiki | head -3
+curl -s http://127.0.0.1:8489/authordb/export_authorlist.wiki | head -3
 # očekáváno: řádek se jmény „X. Yyy<sup>1</sup>, …", prázdný řádek, <small>
 ```
 
@@ -597,12 +597,14 @@ sqlalchemy, python-multipart, passlib, **bcrypt připnutý na 4.0.1**
 
 ### app.py + AuthorDB/ — automatický seznam autorů na wiki stránce (1. 8. 2026)
 
-- `app.py`: nový veřejný endpoint `GET /export.wiki` — seznam autorů jako
-  fragment MediaWiki markupu (jména s `<sup>` indexy afiliací + `<small>`
-  blok afiliací s adresami), stejné indexování jako `/export.tex`
+- `app.py`: nový veřejný endpoint `GET /export_authorlist.wiki` (od 27. 8. 2026
+  přejmenováno z `/export.wiki` — sladěno s `/export_authorlist.txt|tex|xml`
+  přenesenými z main) — seznam autorů jako fragment MediaWiki markupu (jména
+  s `<sup>` indexy afiliací + `<small>` blok afiliací s adresami), stejné
+  indexování jako `/export_authorlist.tex`
 - extension: parser tag `<authordb-list/>` (nový `src/Hooks.php`, registrace
   v `extension.json`, verze 1.1.0) — při renderování wiki stránky si server
-  stáhne `/export.wiki` z `$wgAuthorDBInternalUrl` (default
+  stáhne `/export_authorlist.wiki` z `$wgAuthorDBInternalUrl` (default
   `http://127.0.0.1:8489/authordb`, tj. přímo uvicorn) a vloží ho do stránky;
   parser cache expiruje po `$wgAuthorDBListCacheTtl` s (default 300), při
   nedostupnosti aplikace se místo seznamu zobrazí chybové hlášení a nový
@@ -630,7 +632,7 @@ sqlalchemy, python-multipart, passlib, **bcrypt připnutý na 4.0.1**
 | změna CSS se neprojevila | cache prohlížeče — Ctrl+F5, případně otevřít `…/authordb/` přímo v tabu a tam Ctrl+F5 |
 | iframe má pořád pevnou výšku (~1400 px prázdného místa pod obsahem) | na wiki je stará kopie extension bez modulu `ext.authorDB.frame` — znovu zkopíruj `AuthorDB/` do `extensions/` (krok 7) a dej Ctrl+F5; zkontroluj v konzoli (F12), že se nenačítá JS chyba |
 | na stránce se zobrazuje doslovně text `<authordb-list/>` | wiki běží se starou extension bez registrace tagu — typicky past `cp -r` do existujícího cíle (vznikne vnořený `extensions/AuthorDB/AuthorDB/`); zkopíruj obsah přes `cp -r …/AuthorDB/. …/extensions/AuthorDB/`, ověř verzi 1.1.0 na Special:Version a stránku obnov přes `…&action=purge` |
-| místo `<authordb-list/>` je „Could not load the author list…" | služba neběží, nebo `$wgAuthorDBInternalUrl` nemíří na uvicorn včetně prefixu — na serveru otestuj `curl http://127.0.0.1:8489/authordb/export.wiki` |
+| místo `<authordb-list/>` je „Could not load the author list…" | služba neběží, nebo `$wgAuthorDBInternalUrl` nemíří na uvicorn včetně prefixu — na serveru otestuj `curl http://127.0.0.1:8489/authordb/export_authorlist.wiki` |
 | seznam z `<authordb-list/>` je zastaralý | parser cache — projeví se do `$wgAuthorDBListCacheTtl` s (default 5 min), nebo stránku obnov přes `…index.php?title=<stránka>&action=purge` |
 
 ## Aktualizace aplikace v budoucnu

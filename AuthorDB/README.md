@@ -24,7 +24,7 @@ Special:AuthorDB (PHP)  ──mints signed SSO token──►  <iframe src="/aut
 - The extension also provides the **`<authordb-list/>`** parser tag: put it
   on any wiki page and it renders the current author list (names with
   affiliation indices + the affiliation block), fetched server-side from the
-  app's `/export.wiki` endpoint and refreshed automatically.
+  app's `/export_authorlist.wiki` endpoint and refreshed automatically.
 
 The token is signed with a secret shared between this extension
 (`$wgAuthorDBSecret`) and the app (`AUTHOR_DB_SECRET`). **They must match.**
@@ -82,7 +82,7 @@ Put the self-closing tag anywhere in a wiki page:
 It expands to the current author list in the collaboration format
 (`C. Alispach<sup>1</sup>, …` + a `<small>` block with numbered
 affiliations). The wikitext fragment comes from the app's public
-`GET /export.wiki` endpoint, fetched server-side from
+`GET /export_authorlist.wiki` endpoint, fetched server-side from
 `$wgAuthorDBInternalUrl`; the page's parser cache expires after
 `$wgAuthorDBListCacheTtl` seconds, so database edits show up on the page
 within that window (or immediately after a purge:

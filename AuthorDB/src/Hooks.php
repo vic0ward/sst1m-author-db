@@ -3,7 +3,7 @@
  * Hook handlers for the AuthorDB extension.
  *
  * Registers the <authordb-list/> parser tag: it server-side fetches the
- * current author list from the embedded FastAPI app (GET /export.wiki
+ * current author list from the embedded FastAPI app (GET /export_authorlist.wiki
  * returns a MediaWiki-markup fragment) and inserts it into the page.
  * Pages using the tag re-render at most every $wgAuthorDBListCacheTtl
  * seconds, so the list follows the database without manual page edits.
@@ -50,7 +50,7 @@ class Hooks implements ParserFirstCallInitHook {
 		if ( $base !== '' ) {
 			// The export endpoints are public (read-only), no auth needed.
 			$wikitext = $services->getHttpRequestFactory()->get(
-				$base . '/export.wiki',
+				$base . '/export_authorlist.wiki',
 				[ 'timeout' => 10, 'connectTimeout' => 5 ],
 				__METHOD__
 			);

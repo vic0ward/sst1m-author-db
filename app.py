@@ -1043,7 +1043,7 @@ def export_xml(db: Session = Depends(get_db)):
     )
 
 
-@app.get("/export.wiki")
+@app.get("/export_authorlist.wiki")
 def export_wiki(db: Session = Depends(get_db)):
     """Author list as a MediaWiki markup fragment (used by the <authordb-list/> parser tag)."""
     authors = fetch_active_qualified(db)

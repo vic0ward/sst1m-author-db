@@ -4,7 +4,7 @@ Simple web interface to manage authors and affiliations and export lists in:
 - TXT
 - LaTeX
 - XML
-- MediaWiki markup (`/export.wiki`, used by the wiki integration)
+- MediaWiki markup (`/export_authorlist.wiki`, used by the wiki integration)
 
 ## Features
 - Admin interface
