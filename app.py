@@ -899,7 +899,12 @@ def fetch_active_qualified(db: Session) -> List[Author]:
 def export_txt(db: Session = Depends(get_db)):
     authors = fetch_active_qualified(db)
     lines = [a.display_name() for a in authors]
-    return PlainTextResponse("\n".join(lines) + ("\n" if lines else ""), media_type="text/plain")
+    filename = f"sst1m_author_list_{datetime.utcnow().strftime('%Y%m%d')}.txt"
+    return PlainTextResponse(
+        "\n".join(lines) + ("\n" if lines else ""),
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/export_authorlist.tex")
@@ -943,7 +948,12 @@ def export_tex(db: Session = Depends(get_db)):
             + "\n".join(aff_lines)
             + "\n"
     )
-    return PlainTextResponse(tex, media_type="application/x-tex")
+    filename = f"sst1m_author_list_{datetime.utcnow().strftime('%Y%m%d')}.tex"
+    return PlainTextResponse(
+        tex,
+        media_type="application/x-tex",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 COLLAB_ID = "SST-1M"
@@ -1039,6 +1049,48 @@ def export_xml(db: Session = Depends(get_db)):
     return Response(
         content="\n".join(out).encode("utf-8"),
         media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/export_authorlist.json")
+def export_json(db: Session = Depends(get_db)):
+    """Same public author-list data as /export_authorlist.xml, JSON-shaped."""
+    authors = fetch_active_qualified(db)
+
+    # Same first-appearance ordering and a1, a2, ... ids as the XML export.
+    aff_list = affiliations_by_first_appearance(authors)
+    aff_to_orgid = {aff.id: f"a{i}" for i, aff in enumerate(aff_list, start=1)}
+
+    payload = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "collaboration": {"id": COLLAB_ID, "name": COLLAB_NAME},
+        "publication_reference": PUBREF,
+        "organizations": [
+            {
+                "id": aff_to_orgid[aff.id],
+                "name": aff.institution or aff.short_name,
+                "address": aff.full_address(),
+            }
+            for aff in aff_list
+        ],
+        "authors": [
+            {
+                "name": f"{au.first_name} {au.last_name}".strip(),
+                "given_name": au.first_name,
+                "family_name": au.last_name,
+                "name_paper": (paper_initials(au.first_name) + " " + au.last_name).strip(),
+                "orcid": au.orcid or "",
+                "affiliation_ids": [aff_to_orgid[a.id] for a in au.affiliations if a.id in aff_to_orgid],
+            }
+            for au in authors
+        ],
+    }
+
+    filename = f"sst1m_author_list_{datetime.utcnow().strftime('%Y%m%d')}.json"
+    return Response(
+        content=json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+        media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

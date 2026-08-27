@@ -35,13 +35,13 @@ C. Alispach<sup>1</sup>, A. Araudo<sup>2</sup>, M. Balbo<sup>1</sup>, , A. Bakal
 <authordb-list/>
 </div>
 
-; XML File
-: The up-to-date XML version of the list can be found here:  
-: '''[[File:Author_sst1m_20260623_xml.zip]]'''
+; JSON File
+: Live export (generated on request from the current database, not a static file):
+: '''[http://wiki.sst1m.science/authordb/export_authorlist.json JSON export]'''
 
-; TeX Format  
-: The up-to-date TeX version of the list can be found here:  
-: '''[[File:Sst1m_authorlist_20260623_txt.zip]]'''
+; TeX Format
+: Live export (generated on request from the current database, not a static file):
+: '''[http://wiki.sst1m.science/authordb/export_authorlist.tex TeX export]'''
 
 ; Authorship Database
 : Contains the author list and allows to add/remove/edit list entries (an user needs to be a member of "authordb-editor" group):  
