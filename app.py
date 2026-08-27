@@ -895,14 +895,14 @@ def fetch_active_qualified(db: Session) -> List[Author]:
     return sort_authors(authors)
 
 
-@app.get("/export.txt")
+@app.get("/export_authorlist.txt")
 def export_txt(db: Session = Depends(get_db)):
     authors = fetch_active_qualified(db)
     lines = [a.display_name() for a in authors]
     return PlainTextResponse("\n".join(lines) + ("\n" if lines else ""), media_type="text/plain")
 
 
-@app.get("/export.tex")
+@app.get("/export_authorlist.tex")
 def export_tex(db: Session = Depends(get_db)):
     authors = fetch_active_qualified(db)
 
@@ -948,7 +948,7 @@ def export_tex(db: Session = Depends(get_db)):
 
 COLLAB_ID = "SST-1M"
 COLLAB_NAME = "The SST-1M Collaboration"
-PUBREF = "INSERT ARXIV LINK"  # ou mets ça en variable d'env
+PUBREF = "INSERT ARXIV LINK"
 
 
 def paper_initials(first: str) -> str:
@@ -956,22 +956,17 @@ def paper_initials(first: str) -> str:
     return " ".join([p[0] + "." for p in parts]) if parts else ""
 
 
-@app.get("/export.xml")
+@app.get("/export_authorlist.xml")
 def export_xml(db: Session = Depends(get_db)):
     authors = fetch_active_qualified(db)
 
     # Affiliation list in order of first appearance in the author list.
     aff_list = affiliations_by_first_appearance(authors)
 
-    # organization ids: prefer stored xml_id; else auto a1,a2,...
-    auto_idx = 1
-    aff_to_orgid = {}
-    for aff in aff_list:
-        if aff.xml_id:
-            aff_to_orgid[aff.id] = aff.xml_id
-        else:
-            aff_to_orgid[aff.id] = f"a{auto_idx}"
-            auto_idx += 1
+    # Export organization ids are deliberately regenerated from that order.
+    # Stored xml_id values are useful for import/database identity, but must not
+    # determine publication numbering.
+    aff_to_orgid = {aff.id: f"a{i}" for i, aff in enumerate(aff_list, start=1)}
 
     creation = datetime.utcnow().strftime("%Y-%m-%d_%H:%M")
 
@@ -1039,7 +1034,13 @@ def export_xml(db: Session = Depends(get_db)):
     out.append("    </cal:authors>")
     out.append("</collaborationauthorlist>\n")
 
-    return Response(content="\n".join(out).encode("utf-8"), media_type="application/xml")
+    filename = f"sst1m_author_list_{datetime.utcnow().strftime('%Y%m%d')}.xml"
+
+    return Response(
+        content="\n".join(out).encode("utf-8"),
+        media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/export.wiki")
