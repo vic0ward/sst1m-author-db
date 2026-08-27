@@ -178,14 +178,16 @@ class Affiliation(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc))
 
     def full_address(self) -> str:
+        """Full publication address. short_name is intentionally web-display only."""
+        locality = " ".join([p for p in [self.postal_code, self.city] if p])
         parts = [
-            self.short_name,
+            self.department,
+            self.institution,
             self.street,
-            " ".join([p for p in [self.postal_code, self.city] if p]),
+            locality,
             self.country,
         ]
-
-        return ", ".join([p for p in parts if p and p.strip()])
+        return ", ".join([str(p).strip() for p in parts if p and str(p).strip()])
 
 
 class Author(Base):
@@ -812,7 +814,7 @@ def export_xml(db: Session = Depends(get_db)):
         orgid = aff_to_orgid[aff.id]
         out.append(f'      <foaf:Organization id="{escape(orgid)}">')
         out.append("         <cal:orgDomain></cal:orgDomain>")
-        out.append(f"         <foaf:name>{escape(aff.short_name)}</foaf:name>")
+        out.append(f"         <foaf:name>{escape(aff.institution or aff.short_name)}</foaf:name>")
         out.append('         <cal:orgName source=""></cal:orgName>')
         out.append(f'         <cal:orgStatus collaborationid="{COLLAB_ID}">Member</cal:orgStatus>')
         out.append(f"         <cal:orgAddress>{escape(aff.full_address())}</cal:orgAddress>")
