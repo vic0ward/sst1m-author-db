@@ -20,6 +20,13 @@
 </div>
 {% endif %}
 
+<div class="card">
+    <h2>Download latest author list</h2>
+    <a class="button" href="{{ root_path }}/export_authorlist.txt"> Text (.txt)</a>
+    <a class="button" href="{{ root_path }}/export_authorlist.tex"> LaTeX (.tex)</a>
+    <a class="button" href="{{ root_path }}/export_authorlist.xml"> XML (.xml)</a>
+</div>
+
 <p>Authors in database: <b>{{ author_count }}</b></p>
 
 <table border="1" cellpadding="6" cellspacing="0">
@@ -47,12 +54,14 @@
     {% endfor %}
 </table>
 
+{# Download list superseded by the button-style card near the top of the page.
 <h2>Download latest author list</h2>
 <ul>
     <li><a href="{{ root_path }}/export_authorlist.txt">Text (.txt)</a></li>
     <li><a href="{{ root_path }}/export_authorlist.tex">LaTeX (.tex)</a></li>
     <li><a href="{{ root_path }}/export_authorlist.xml">XML (.xml)</a></li>
 </ul>
+#}
 
 {# Duplicate admin login link hidden — same reason as the box above.
 <h2>Admin</h2>
