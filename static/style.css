@@ -30,9 +30,15 @@ h2 {
 .card {
     background: white;
     border-radius: 14px;
-    padding: 24px;
-    margin: 24px 0;
+    padding: 14px 20px;
+    margin: 14px 0;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+}
+
+.card > h2:first-child {
+    /* h2's global margin-top would otherwise stack on top of the card's own
+       padding, doubling the empty space above the heading. */
+    margin-top: 0;
 }
 
 .nav {
